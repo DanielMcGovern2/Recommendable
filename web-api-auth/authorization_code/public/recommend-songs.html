@@ -1,0 +1,525 @@
+<!doctype html>
+<html>
+  <head>
+    <a href="http://localhost:8888/index.html"><img src="images/logo.png" alt="logo" width="750" height="68" style="vertical-align:middle;margin:50px 400px"></a>
+    <title>Recommendable</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="css/uikit.min.css" />
+    <script src="js/uikit.min.js"></script>
+    <script src="js/uikit-icons.min.js"></script>
+  </head>
+
+  <body>
+    <div class="uk-container uk-background-muted uk-padding-small">
+      <div id="main">
+        <h1>Recommend New Songs</h1>
+      </div>
+      <br>
+      <!-- insert content here -->
+      <div><dt><button class="uk-button uk-button-secondary" id="recommend">Recommend with Spotify</button>
+        <button class="uk-button uk-button-danger" id="get-rec">Recommend with Recommendable</button></dt></div>
+      <br>
+      <div id = "rec" style="display:none">
+        <p>Select what you would like to hear.</p>
+        <div><dt>
+          <input type="radio" id="rock" name="genre" value="rock" checked="true">
+          <label for="rock">Rock</label>
+          <input type="radio" id="pop" name="genre" value="pop">
+          <label for="pop">Pop</label>
+          <input type="radio" id="rap" name="genre" value="rap">
+          <label for="rap">Rap</label>
+          <br>
+        </dt></div>
+        <div><dt>
+          <input type="radio" id="high_ac" name="acoustic" value="high_ac">
+          <label for="high_ac">High Acoustic</label>
+          <input type="radio" id="low_ac" name="acoustic" value="low_ac">
+          <label for="low_ac">Low Acoustic</label>
+          <br>
+        </dt></div><div><dt>
+          <input type="radio" id="high_dance" name="dance" value="high_dance">
+          <label for="high_dance">High Danceability</label>
+          <input type="radio" id="low_dance" name="dance" value="low_dance">
+          <label for="low_dance">Low Danceability</label>
+          <br>
+        </dt></div><div><dt>
+          <input type="radio" id="high_en" name="energy" value="high_en">
+          <label for="high_en">High Energy</label>
+          <input type="radio" id="low_en" name="energy" value="low_en">
+          <label for="low_en">Low Energy</label>
+          <br>
+        </dt></div><div><dt>
+          <input type="radio" id="high_in" name="instrumental" value="high_in">
+          <label for="high_in">High Instrumental</label>
+          <input type="radio" id="low_in" name="instrumental" value="low_in">
+          <label for="low_in">Low Instrumental</label>
+          <br>
+        </dt></div>
+        <br>
+        <div><dt><button class="uk-button uk-button-primary" id="submit">Submit</button></dt></div>
+      </div>
+      <br>
+      <p id ="track-space">Tracks will show here.</p>
+      <br>
+      <div><dt><button class="uk-button uk-button-default" id="select-page">Back</button></dt></div>
+      <br><br>
+      <p>All recommended tracks will be added to a new playlist on your Spotify account.</p>
+    </div>
+
+    <script src="//cdnjs.cloudflare.com/ajax/libs/handlebars.js/2.0.0-alpha.1/handlebars.min.js"></script>
+    <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+    
+    <script>
+      (function() {
+        document.getElementById('select-page').addEventListener('click', function() {
+          // change page
+          window.location.href = "http://localhost:8888/select-page.html";
+        },
+          false);
+      })();
+
+      (function() {
+        var id = "";
+        var user_uri = "";
+        var access_token;
+        document.getElementById('recommend').addEventListener('click', function() {
+          document.getElementById("recommend").disabled = true;
+          // retrieve the access token...
+          $.get("http://localhost:8080/access_token", function(data){
+            access_token = data;
+          }).done(function( access_token ) {
+            $.ajax({
+              // this url pulls the user's email
+              url: 'https://api.spotify.com/v1/me',
+              headers: {
+                'Authorization': 'Bearer ' + access_token
+              },
+              success: function(response) {
+                id = String(response.email);
+                user_uri = String(response.uri).substr(13);
+              }
+            }).done(function( o ) {
+              // check if it's a first time user
+              var returningUser = "";
+
+              $.post("http://localhost:8080/check_rec",  // check for previous recommendations...
+              {
+                id
+              },
+              function(data){
+                returningUser = String(data);
+              }).done(function( o ) {
+                var track_list = [];
+
+                if (returningUser == "False") {  // if it's a first time user...
+                  $.ajax({
+                    // this url pulls the first 15 tracks from Recommendable's Custom playlist
+                    url: 'https://api.spotify.com/v1/playlists/1Svh7KuVRG52utiE06sbEI/tracks?market=IE&limit=15',
+                    headers: {
+                      'Authorization': 'Bearer ' + access_token
+                    },
+                    success: function(response) {
+                      var track_info = '<h3>It looks like your first time here. Here\'s 15 tracks of the best pop, rap and rock to start you off.\
+                        <br>Now start listening and get rating!</h3><br>';
+                      var track_uri = [];
+                      var artist_uri = [];
+                      var album_cover = [];
+                      var genre = [];
+
+                      // get the track name and artist as a String
+                      response.items.forEach(element => {
+                        track_uri.push(String(element.track.uri));
+                        var tl_string = String(element.track.name) + " by ";
+                        track_info += "<img src=\"" + element.track.album.images[2].url + "\"></img>        " + String(element.track.name) + " by ";
+                        album_cover.push(String(element.track.album.images[2].url));
+
+                        var multiple = false;
+                        element.track.album.artists.forEach(ar => {
+                          if (multiple == true) {
+                            track_info += ", ";
+                            tl_string += ", ";
+                          }
+                          track_info += String(ar.name);
+                          tl_string += String(ar.name + ".,.");  // .,. is our split - cannot use ", "
+                          multiple = true;
+                        });
+                        artist_uri.push(String(element.track.album.artists[0].uri));
+                        track_list.push(tl_string);
+                        track_info += "<br><br>";
+                        document.getElementById("track-space").innerHTML = track_info;
+                      });
+
+                      for (var i = 0; i < 15; i++) {
+                        if (i < 5)
+                          genre.push("pop");
+                        else if (i < 10)
+                          genre.push("rock");
+                        else
+                          genre.push("rap");
+                      }
+
+                      $.post("http://localhost:8080/save_rec",  // save the recommendations...
+                      {
+                        track_list,
+                        id,
+                        track_uri,
+                        artist_uri,
+                        album_cover,
+                        genre
+                      });
+                      
+                      createPlaylist(access_token, track_uri, user_uri);
+                    }
+                  });
+                } else {  // if it's a returning user...
+                  document.getElementById("rec").style = "inline";  // show submit + options
+                }
+              });
+            });
+          });
+        },
+        false);
+
+        document.getElementById('submit').addEventListener('click', function() {
+          document.getElementById("track-space").innerHTML = "Get your headphones ready!";
+          var genre = document.getElementsByName('genre');
+          var gen_val = "";
+          var acoustic = document.getElementsByName('acoustic');
+          var ac_val = "";
+          var dance = document.getElementsByName('dance');
+          var da_val = "";
+          var energy = document.getElementsByName('energy');
+          var en_val = "";
+          var instrumental = document.getElementsByName('instrumental');
+          var in_val = "";
+          
+          
+          if (genre[0].checked)
+            gen_val = genre[0].id;
+          else if (genre[1].checked)
+            gen_val = genre[1].id;
+          else if (genre[2].checked)
+            gen_val = genre[2].id;
+          if (acoustic[0].checked)
+            ac_val = "0.7"
+          else
+            ac_val = "0.3"
+          if (dance[0].checked)
+            da_val = "0.7"
+          else
+            da_val = "0.3"
+          if (energy[0].checked)
+            en_val = "0.7"
+          else
+            en_val = "0.3"
+          if (instrumental[0].checked)
+            in_val = "0.7"
+          else
+            in_val = "0.3"
+
+          var values = [{gen_val, ac_val, da_val, en_val, in_val}];
+
+          $.post("http://localhost:8080/get_rec",  // get recommendations
+          {
+            id,
+            values
+          },
+          function(response){
+            var list = String(response).split("\', \'");
+          }).done(function( list ) {
+            list = String(list).split("\', \'");
+
+            formatTracks(access_token, list, id, user_uri, gen_val);
+          });
+        });
+      })();
+
+      document.getElementById('get-rec').addEventListener('click', function() {
+        document.getElementById("track-space").innerHTML = "Get your headphones ready!";
+        $.get("http://localhost:8080/access_token", function(data){
+          access_token = data;
+        }).done(function( access_token ) {
+          $.ajax({
+            // this url pulls the user's email
+            url: 'https://api.spotify.com/v1/me',
+            headers: {
+              'Authorization': 'Bearer ' + access_token
+            },
+            success: function(response) {
+              id = String(response.email);
+              user_uri = String(response.uri).substr(13);
+              $.post("http://localhost:8080/check_rec",  // check for previous recommendations...
+              {
+                id
+              },
+              function(data){
+                returningUser = String(data);
+
+                if (returningUser == "False") {  // if it's a first time user...
+                  document.getElementById("track-space").innerHTML = "You have not yet rated any tracks. Please use the \"Recommend with Spotify\" option\
+                  to get tracks to rate.";
+                }
+                else {
+                  $.post("http://localhost:8080/ml_recommend",
+                  {
+                    id: id
+                  },
+                  function(response){   // mostly formatting in this function
+                    list = response.split(".,.");
+                    track_list = []
+                    track_list.push(list[0] + ".,.");
+                    for (i = 1; i < list.length; i++) {
+                      track_list.push(list[i].substr(4) + ".,.");
+                      list[i] = list[i].substr(4);
+                    }
+                    $.post("http://localhost:8080/get_genres",
+                    {
+                      track_list
+                    },
+                    function(genre){
+                      $.post("http://localhost:8080/get_uris",
+                      {
+                        track_list
+                      },
+                      function(response){
+                        response = response.replaceAll("\"", "\'");
+                        temp_list = response.split(".,.");
+                        str = String(temp_list[0]).replaceAll("\\", "");
+                        artist_uri = str.split("\', \'");
+
+                        str = String(temp_list[1]).replaceAll("\\", "").substr(4);
+                        track_uri = str.split("\', \'");
+
+                        str = String(temp_list[2]).replaceAll("\\", "").substr(4);
+                        album_cover = str.split("\', \'");
+
+                        artist_uri[0] = artist_uri[0].substr(4);
+                        artist_uri[artist_uri.length - 1] = artist_uri[artist_uri.length - 1].substr(0, artist_uri[artist_uri.length - 1].length - 2);
+
+                        track_uri[0] = track_uri[0].substr(2);
+                        track_uri[track_uri.length - 1] = track_uri[track_uri.length - 1].substr(0, track_uri[track_uri.length - 1].length - 2);
+
+                        album_cover[0] = album_cover[0].substr(2);
+                        album_cover[album_cover.length - 1] = album_cover[album_cover.length - 1].substr(0, album_cover[album_cover.length - 1].length - 4);
+
+                        index = 0;
+                        artist_uri.forEach(item => {
+                          artist_uri[index] = artist_uri[index].substr(0, 37);
+                          track_uri[index] = track_uri[index].substr(0, 36);
+                          album_cover[index] = album_cover[index].substr(0, 64);
+                          index++
+                        });
+
+                        index = 0;
+                        strList = "";
+                        list.forEach(item => {
+                          strList += "<img src=\"" + album_cover[index] + "\"></img>   " + item + "<br><br>";
+                          index++
+                        });
+                        
+                        if (strList.length != 29) {   // if recommendations are returned...
+                          document.getElementById("track-space").innerHTML = strList;
+
+                          genre = genre.replaceAll("\'", "");
+                          genre = genre.replaceAll("\[", "");
+                          genre = genre.replaceAll("\]", "");
+                          genre_str = genre.split(", ");
+                          
+                          $.post("http://localhost:8080/save_rec",  // save the recommendations...
+                          {
+                            track_list,
+                            id,
+                            track_uri,
+                            artist_uri,
+                            album_cover,
+                            genre: genre_str
+                          });
+
+                          createPlaylist(access_token, track_uri, user_uri);
+                      } else {
+                        document.getElementById("track-space").innerHTML = "You have explored all of Recommendable's tracks.<br>Try using \'Recommend With Spotify\'!";
+                      }
+                    });
+                  });
+                });
+              }
+             });
+            }
+          })
+        });
+      });
+
+      function createPlaylist(access_token, track_uri, id) {
+        // create a playlist for the user
+        var url = 'https://api.spotify.com/v1/users/' + id + '/playlists';
+        var data = {
+          "name": "Recommendable",
+          "public": false
+        };
+
+        $.ajax({
+          type: 'POST',
+          url: url,
+          data: JSON.stringify(data),
+          dataType: 'json',
+          headers: {
+            'Authorization': 'Bearer ' + access_token
+          },
+          contentType: 'application/json',
+          success: function(result) {
+            var str_tr_uri = "";  // format the track URIs
+            track_uri.forEach(track => {
+              str_tr_uri += "\"" + String(track) + "\",";
+            });
+            str_tr_uri = str_tr_uri.substr(0, str_tr_uri.length - 1);
+
+            var uris = "{\"uris\":[" + str_tr_uri + "]}"
+
+            // add the tracks to the playlist
+            url = "https://api.spotify.com/v1/playlists/" + result.uri.substr(17) + "/tracks";
+            
+            $.ajax({
+              type: 'POST',
+              url: url,
+              data: uris,
+              headers: {
+                'Authorization': 'Bearer ' + access_token,
+                'Content-Type': 'application/json',
+              }
+            })
+          }
+        })
+        return "Success";
+      }
+
+      async function callSeedURL(list, access_token, masterList) {
+        var masterList = [];
+        
+        list.forEach(item => {  // for each URL...
+          $.ajax({  // make a request...
+            url: item,
+            headers: {
+              'Authorization': 'Bearer ' + access_token
+            },
+            success: function(response) {
+              response.tracks.forEach(itm => {
+                masterList.push(itm);
+              });
+            }
+          });
+        });
+
+        return masterList;
+      }
+
+      async function formatTracks(access_token, list, id, user_uri, gen_val) {
+        var masterList = await callSeedURL(list, access_token);
+        setTimeout(() => {
+
+          var track_list = [];
+          var index = 0;
+          var genre = [];
+          var album_cover = [];
+          var track_uri = [];
+          var artist_uri = [];
+
+          var track_list_temp = [];
+          
+          // get the track name and artist as a String
+          masterList.forEach(track => {
+            var tl_string = String(track.name) + " by ";
+            var track_info = "";
+
+            var multiple = false;
+            track.album.artists.forEach(ar => {
+              if (multiple == true) {
+                tl_string += ", ";
+              }
+              tl_string += String(ar.name);  // .,. is our split - cannot use ", "
+              multiple = true;
+            });
+
+            // check to see if the track was already recommended
+            $.post("http://localhost:8080/check_dupes",
+            {
+              track: tl_string,
+              id,
+            },
+            function(distinct){
+              var dist = String(distinct);
+
+              if (dist != ""){  // if it's not been saved as a recommendation before...
+                track_list.push(tl_string);  // build the track list
+                // remove all duplicate recommendations
+                var uniqueTracks = [];
+                $.each(track_list, function(i, x){
+                  if($.inArray(x, uniqueTracks) === -1) {
+                    uniqueTracks.push(x);
+                  }
+                });
+
+                // another duplicate check
+                if (uniqueTracks[uniqueTracks.length - 1] == track_list[track_list.length - 1]) {
+                  if (track_list[track_list.length - 1] != track_list[track_list.length - 2]) {
+                    // console.log("Saving " + uniqueTracks[uniqueTracks.length - 1] + ". Track URI: " + String(track.uri) + ". Artist URI: " + track.album.artists[0].uri);
+                    track_uri.push(String(track.uri));
+                    artist_uri.push(String(track.album.artists[0].uri));
+                  }
+                }
+
+                // check that the album cover is not a dupe - may cause issue for multiple recs from one album
+                var dupe = false;
+                album_cover.forEach(cov => {
+                  if (cov == track.album.images[2].url){
+                    dupe = true;
+                  }
+                });
+                if (dupe == false) {
+                  album_cover.push(String(track.album.images[2].url));                  
+                  genre.push(gen_val);
+                }
+
+                // need a temporary list for saving recommendations
+                if (uniqueTracks.length == index + 1){
+                  track_list_temp.push(uniqueTracks[index] + ".,.");
+                  // console.log("Adding " + uniqueTracks[index]);
+                }
+                else {
+                  // console.log("Not adding " + uniqueTracks[index]);
+                  index--;
+                }
+                index++;
+
+                // track_info is what appears on screen...
+                var aci = 0;  // album cover index
+                uniqueTracks.forEach(item => {
+                  track_info += "<img src=\"" + album_cover[aci] + "\"></img>        " + String(item) + "<br><br>";
+                  aci++;
+                });
+
+                document.getElementById("track-space").innerHTML = track_info;
+              }
+            });
+          });
+          
+          // console.log(track_list_temp, track_uri, artist_uri, album_cover);
+          setTimeout(() => {
+            $.post("http://localhost:8080/save_rec",  // save the recommendations...
+            {
+              track_list: track_list_temp,
+              id,
+              track_uri,
+              artist_uri,
+              album_cover,
+              genre
+            });
+
+            createPlaylist(access_token, track_uri, user_uri);
+          }, 3000); // wait 3000 ms
+        }, 2000); // wait 2000 ms
+      }
+
+    </script>
+    <br><br>
+  </body>
+</html>

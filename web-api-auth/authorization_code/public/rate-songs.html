@@ -1,0 +1,119 @@
+<!doctype html>
+<html>
+  <head>
+    <a href="http://localhost:8888/index.html"><img src="images/logo.png" alt="logo" width="750" height="68" style="vertical-align:middle;margin:50px 400px" ></a>
+    <title>Recommendable</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="css/uikit.min.css" />
+    <script src="js/uikit.min.js"></script>
+    <script src="js/uikit-icons.min.js"></script>
+  </head>
+
+  <body>
+    <div class="uk-container uk-background-muted uk-padding-small">
+      <div id="main">
+        <h1>Rate Recommended Songs</h1>
+      </div>
+      <br>
+      <!-- insert content here -->
+      <div><dt><button class="uk-button uk-button-danger" id="rate-songs">Rate</button></dt></div>
+      <br><br>
+      <p id ="track-space">Please click 'Rate' to begin. Tracks will show here.</p>
+      <br>
+      <div><dt><form>
+        <label for="rating" id="rating-box">Please enter a rating between 1 and 10:</label><br>
+        <input type="text" id="rating" name="rating"><br>
+      </form></dt></div>
+      <br>
+      <div><dt><button class="uk-button uk-button-primary" id="rate-submit" disabled = true>Submit</button></dt></div>
+      <br><br>
+      <div><dt><button class="uk-button uk-button-primary" id="select-page">Back</button></dt></div>
+    </div>
+
+    <script src="//cdnjs.cloudflare.com/ajax/libs/handlebars.js/2.0.0-alpha.1/handlebars.min.js"></script>
+    <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+    <script>
+      (function() {
+        document.getElementById('select-page').addEventListener('click', function() {
+          // change page
+          window.location.href = "http://localhost:8888/select-page.html";
+        },
+          false);
+          
+        index = 0; // used for switching songs
+        songlist = [];
+        id = ""; // email
+
+        document.getElementById('rate-songs').addEventListener('click', function() {
+          document.getElementById("track-space").innerHTML = "Please wait...";
+          $.get("http://localhost:8080/access_token", function(data){ // retrieve the access token...
+            var access_token = data;
+          }).done(function( access_token ) {
+            // retrieve recommendation list from db
+            $.ajax({
+              // this url pulls the user's email
+              url: 'https://api.spotify.com/v1/me',
+              headers: {
+                'Authorization': 'Bearer ' + access_token
+              },
+              success: function(response) {
+                id = String(response.email);
+                $.post("http://localhost:8080/load_rec", // load the recommendations...
+                {
+                  id
+                }).done(function(data) {
+                  songlist = data.split(".,."); // split and add breaklines
+                  
+                  for (i = 1; i < songlist.length; i++) {
+                    songlist[i] = songlist[i].substring(4);
+                  }
+
+                  if (songlist == null || songlist[0] == undefined || songlist[index] == undefined || songlist[0] == "")                    
+                    document.getElementById("track-space").innerHTML = "Sorry, no tracks found.";
+                  else {                    
+                    songlist[index] = songlist[index].replaceAll("\\", "");
+                    document.getElementById("track-space").innerHTML = songlist[index]; // display the track
+                    document.getElementById("rate-submit").disabled = false;
+                  }
+                });
+              }
+            });
+          },
+          false);
+        });
+
+        var si = 0;  // song index
+
+        document.getElementById('rate-submit').addEventListener('click', function() {
+          rating = parseInt(document.getElementById("rating").value); // get the rating...
+          if (!(rating < 1 || rating > 10 || isNaN(rating))) { // validate...
+            songlist[si] = String(songlist[si].substr(83));  // trim the image tag when sending to db!
+            si++;
+
+            var userRating = {
+              user: id,
+              song: songlist[index],
+              genre: "rock",
+              rating: rating
+            };
+            
+            $.post("http://localhost:8080/rate_rec", // send rating to db
+            {
+              userRating
+            });
+            index++;
+            if (!(songlist[index] == undefined || songlist[index] == "")) { // if the next song exists...
+              songlist[index] = songlist[index].replaceAll("\\", "");
+              document.getElementById("track-space").innerHTML = songlist[index]; // change song...
+            } else {
+              document.getElementById("track-space").innerHTML = "End of list."
+            }
+          } else {
+            document.getElementById("rating-box").innerHTML = "Please enter a valid number between 1 and 10.";
+          }
+        }, false);
+      })();
+    </script>
+    <br><br>
+  </body>
+</html>

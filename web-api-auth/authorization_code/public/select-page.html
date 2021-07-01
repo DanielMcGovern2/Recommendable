@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+  <head>
+    <a href="http://localhost:8888/index.html"><img src="images/logo.png" alt="logo" width="750" height="68" style="vertical-align:middle;margin:50px 400px"></a>
+    <title>Recommendable</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="css/uikit.min.css" />
+    <script src="js/uikit.min.js"></script>
+    <script src="js/uikit-icons.min.js"></script>
+  </head>
+
+  <body>
+    <div class="uk-container uk-background-muted uk-padding-small">
+      <div id="main">
+        <h1>Explore New Music</h1>
+      </div>
+      <br>
+      <div><dt><button class="uk-button uk-button-danger" id="recommend-new">Recommend New Songs</button></dt></div>
+      <br>
+      <div><dt><button class="uk-button uk-button-danger" id="rate">Rate Recommended Songs</button></dt></div>
+      <br><br>
+      <div><dt><button class="uk-button uk-button-primary" id="genre-select">Back To Login</button></dt></div>
+    </div>
+
+    <script src="//cdnjs.cloudflare.com/ajax/libs/handlebars.js/2.0.0-alpha.1/handlebars.min.js"></script>
+    <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+    <script>
+      (function() {
+        document.getElementById('recommend-new').addEventListener('click', function() {
+          // change page
+          window.location.href = "http://localhost:8888/recommend-songs.html";
+        },
+          false);
+
+        document.getElementById('rate').addEventListener('click', function() {
+          // change page
+          window.location.href = "http://localhost:8888/rate-songs.html";
+        },
+          false);
+
+        document.getElementById('genre-select').addEventListener('click', function() {
+          // change page
+          window.location.href = "http://localhost:8888/index.html";
+        },
+          false);
+      })();
+    </script>
+    <br><br>
+  </body>
+</html>
